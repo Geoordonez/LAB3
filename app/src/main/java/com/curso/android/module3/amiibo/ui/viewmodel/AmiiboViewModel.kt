@@ -153,6 +153,15 @@ class AmiiboViewModel(
      */
     private val _uiState = MutableStateFlow<AmiiboUiState>(AmiiboUiState.Loading)
 
+    // 1. Agrega esta variable para el texto de búsqueda
+    private val _searchText = MutableStateFlow("")
+    val searchText = _searchText.asStateFlow()
+
+    // 2. Agrega esta función para actualizar el texto
+    fun onSearchTextChange(text: String) {
+        _searchText.value = text
+    }
+
     /**
      * Estado público inmutable para la UI.
      *
