@@ -1,5 +1,6 @@
 package com.curso.android.module3.amiibo.ui.screens
 
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -121,41 +122,27 @@ import org.koin.androidx.compose.koinViewModel
  *   - koinViewModel() busca el ViewModel en el contenedor de Koin
  *   - Equivalente a by viewModel() pero para Compose
  */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AmiiboListScreen(
     onAmiiboClick: (String) -> Unit = {},
     viewModel: AmiiboViewModel = koinViewModel()
 ) {
-    /**
-     * collectAsStateWithLifecycle():
-     * - Convierte StateFlow a State de Compose
-     * - Respeta el lifecycle (pausa colección cuando la UI no es visible)
-     * - Más eficiente que collectAsState() normal
-     *
-     * 'by' es delegación de propiedades:
-     * - uiState se comporta como AmiiboUiState directamente
-     * - Sin 'by' sería: uiState.value para acceder
-     */
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pageSize by viewModel.pageSize.collectAsStateWithLifecycle()
     val hasMorePages by viewModel.hasMorePages.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val paginationError by viewModel.paginationError.collectAsStateWithLifecycle()
 
+    // NUEVO: Obtenemos el texto del buscador del ViewModel
+    val searchText by viewModel.searchText.collectAsStateWithLifecycle()
+
     // Estado para el dropdown del tamaño de página
     var showPageSizeDropdown by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            /**
-             * TopAppBar de Material 3.
-             *
-             * Componentes:
-             * - title: Título de la app
-             * - actions: Selector de límite + botón refresh
-             * - colors: Esquema de colores personalizado
-             */
             TopAppBar(
                 title = {
                     Text(
@@ -164,17 +151,8 @@ fun AmiiboListScreen(
                     )
                 },
                 actions = {
-                    /**
-                     * CONCEPTO: Dropdown para seleccionar tamaño de página
-                     *
-                     * Box envuelve el botón y el menú para posicionar
-                     * correctamente el dropdown debajo del botón.
-                     */
                     Box {
-                        // Botón que muestra el tamaño de página actual
-                        TextButton(
-                            onClick = { showPageSizeDropdown = true }
-                        ) {
+                        TextButton(onClick = { showPageSizeDropdown = true }) {
                             Text(
                                 text = "Página: $pageSize",
                                 style = MaterialTheme.typography.labelLarge,
@@ -186,8 +164,6 @@ fun AmiiboListScreen(
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
-
-                        // Menú desplegable con opciones
                         DropdownMenu(
                             expanded = showPageSizeDropdown,
                             onDismissRequest = { showPageSizeDropdown = false }
@@ -206,8 +182,6 @@ fun AmiiboListScreen(
                             }
                         }
                     }
-
-                    // Botón de refresh
                     IconButton(onClick = { viewModel.refreshAmiibos() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -222,123 +196,112 @@ fun AmiiboListScreen(
             )
         }
     ) { paddingValues ->
-        /**
-         * =====================================================================
-         * MANEJO DE ESTADOS CON WHEN EXHAUSTIVO
-         * =====================================================================
-         *
-         * when sobre sealed interface garantiza que manejemos TODOS los casos.
-         * Si agregas un nuevo estado al sealed interface, el compilador
-         * te obligará a manejarlo aquí.
-         *
-         * Esto elimina errores comunes como:
-         * - Olvidar manejar el estado de error
-         * - Estados inconsistentes (loading + error al mismo tiempo)
-         */
-        when (val state = uiState) {
-            // Estado de carga inicial
-            is AmiiboUiState.Loading -> {
-                LoadingContent(
-                    modifier = Modifier.padding(paddingValues)
-                )
-            }
 
-            // Estado de éxito con datos
-            is AmiiboUiState.Success -> {
-                /**
-                 * =====================================================================
-                 * PULL-TO-REFRESH (Material 3)
-                 * =====================================================================
-                 *
-                 * PullToRefreshBox es el componente oficial de Material 3 para
-                 * implementar el patrón "pull-to-refresh" (deslizar hacia abajo
-                 * para actualizar).
-                 *
-                 * CONCEPTO: Pull-to-Refresh
-                 * -------------------------
-                 * Es un patrón de UX muy común en apps móviles que permite al
-                 * usuario actualizar el contenido deslizando hacia abajo desde
-                 * la parte superior de la lista.
-                 *
-                 * Parámetros clave:
-                 * - isRefreshing: Controla si se muestra el indicador de carga
-                 * - onRefresh: Callback que se ejecuta cuando el usuario "suelta"
-                 *
-                 * VENTAJAS sobre LinearProgressIndicator manual:
-                 * 1. Animación nativa del sistema (familiar para el usuario)
-                 * 2. Gesture handling automático
-                 * 3. Integración con el scroll del contenido
-                 *
-                 * NOTA: Requiere @OptIn(ExperimentalMaterial3Api::class)
-                 */
-                PullToRefreshBox(
-                    isRefreshing = state.isRefreshing,
-                    onRefresh = { viewModel.refreshAmiibos() },
-                    modifier = Modifier.padding(paddingValues)
-                ) {
-                    // Grid de Amiibos con paginación
-                    AmiiboGrid(
-                        amiibos = state.amiibos,
-                        onAmiiboClick = onAmiiboClick,
-                        hasMorePages = hasMorePages,
-                        isLoadingMore = isLoadingMore,
-                        paginationError = paginationError,
-                        onLoadMore = { viewModel.loadNextPage() },
-                        onRetryLoadMore = { viewModel.retryLoadMore() },
-                        modifier = Modifier.fillMaxSize()
+        // NUEVO: Column principal para alojar el Buscador + El contenido (Lista/Carga/Error)
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+
+            // --- BARRA DE BÚSQUEDA ---
+            androidx.compose.material3.OutlinedTextField(
+                value = searchText,
+                onValueChange = { viewModel.onSearchTextChange(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                placeholder = { Text("Buscar personaje...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Search,
+                        contentDescription = null
                     )
-                }
-            }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
 
-            /**
-             * Estado de error con tipo específico.
-             *
-             * CONCEPTO: Errores Tipados en UI
-             * -------------------------------
-             * El estado de error ahora incluye:
-             * - errorType: Para mostrar iconos apropiados
-             * - isRetryable: Para decidir si mostrar botón de reintentar
-             *
-             * Esto mejora la UX porque:
-             * - El usuario ve un icono que representa el problema
-             * - Solo ve "Reintentar" cuando tiene sentido
-             */
-            is AmiiboUiState.Error -> {
-                if (state.cachedAmiibos.isNotEmpty()) {
-                    // Hay datos en cache: mostrar datos + mensaje de error
-                    Column(modifier = Modifier.padding(paddingValues)) {
-                        ErrorBanner(
-                            message = state.message,
-                            errorType = state.errorType,
-                            isRetryable = state.isRetryable,
-                            onRetry = { viewModel.refreshAmiibos() }
-                        )
-                        AmiiboGrid(
-                            amiibos = state.cachedAmiibos,
-                            onAmiiboClick = onAmiiboClick,
-                            hasMorePages = false,
-                            isLoadingMore = false,
-                            paginationError = null,
-                            onLoadMore = {},
-                            onRetryLoadMore = {},
-                            modifier = Modifier.fillMaxSize()
-                        )
+            // --- CONTENIDO VARIABLE (Loading, Success, Error) ---
+            // Usamos Box con weight(1f) para que ocupe el resto de la pantalla debajo del buscador
+            Box(modifier = Modifier.weight(1f)) {
+                when (val state = uiState) {
+                    is AmiiboUiState.Loading -> {
+                        LoadingContent()
                     }
-                } else {
-                    // Sin cache: pantalla de error completa
-                    ErrorContent(
-                        message = state.message,
-                        errorType = state.errorType,
-                        isRetryable = state.isRetryable,
-                        onRetry = { viewModel.refreshAmiibos() },
-                        modifier = Modifier.padding(paddingValues)
-                    )
+
+                    is AmiiboUiState.Success -> {
+                        // LÓGICA DE FILTRADO
+                        val filteredAmiibos = if (searchText.isEmpty()) {
+                            state.amiibos
+                        } else {
+                            state.amiibos.filter {
+                                it.name.contains(searchText, ignoreCase = true)
+                            }
+                        }
+
+                        PullToRefreshBox(
+                            isRefreshing = state.isRefreshing,
+                            onRefresh = { viewModel.refreshAmiibos() }
+                        ) {
+                            // Pasamos la lista FILTRADA al grid
+                            AmiiboGrid(
+                                amiibos = filteredAmiibos,
+                                onAmiiboClick = onAmiiboClick,
+                                hasMorePages = hasMorePages,
+                                isLoadingMore = isLoadingMore,
+                                paginationError = paginationError,
+                                onLoadMore = { viewModel.loadNextPage() },
+                                onRetryLoadMore = { viewModel.retryLoadMore() },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+
+                    is AmiiboUiState.Error -> {
+                        if (state.cachedAmiibos.isNotEmpty()) {
+                            // Error pero con cache: Filtramos también la cache
+                            val filteredCache = if (searchText.isEmpty()) {
+                                state.cachedAmiibos
+                            } else {
+                                state.cachedAmiibos.filter {
+                                    it.name.contains(searchText, ignoreCase = true)
+                                }
+                            }
+
+                            Column {
+                                ErrorBanner(
+                                    message = state.message,
+                                    errorType = state.errorType,
+                                    isRetryable = state.isRetryable,
+                                    onRetry = { viewModel.refreshAmiibos() }
+                                )
+                                AmiiboGrid(
+                                    amiibos = filteredCache,
+                                    onAmiiboClick = onAmiiboClick,
+                                    hasMorePages = false,
+                                    isLoadingMore = false,
+                                    paginationError = null,
+                                    onLoadMore = {},
+                                    onRetryLoadMore = {},
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        } else {
+                            // Error sin cache
+                            ErrorContent(
+                                message = state.message,
+                                errorType = state.errorType,
+                                isRetryable = state.isRetryable,
+                                onRetry = { viewModel.refreshAmiibos() }
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
-
 /**
  * ============================================================================
  * COMPONENTES DE UI REUTILIZABLES
