@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -118,6 +118,7 @@ fun AmiiboDetailScreen(
                 )
             }
 
+            // AQUÍ ESTÁ EL CAMBIO IMPORTANTE
             is AmiiboDetailUiState.Error -> {
                 Box(
                     modifier = Modifier
@@ -127,23 +128,27 @@ fun AmiiboDetailScreen(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(32.dp)
+                        verticalArrangement = Arrangement.Center
                     ) {
+                        // Icono de advertencia
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Tu mensaje personalizado: SOLO TEXTO
                         Text(
-                            text = stringResource(R.string.error_loading),
+                            text = "No tienes conexión a internet",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = state.message,
-                            style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                        Button(onClick = { viewModel.loadAmiiboDetail() }) {
-                            Text(text = stringResource(R.string.retry))
-                        }
+
+                        // ELIMINADO: El botón de Retry ya no existe aquí
                     }
                 }
             }
